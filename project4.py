@@ -219,12 +219,9 @@ class NeuralNetwork:
         """
         error_vector = {}
 
-        training = data_set
-        checking = data_set
-
         epochs = 0
-        while epochs < 10000:
-            for (x, y) in training:
+        while epochs < 1000:
+            for (x, y) in data_set:
         
                 # propagate inputs forward and compute outputs
                 # input layer
@@ -295,10 +292,6 @@ class NeuralNetwork:
                             new_weight = node_weight_pair[1] + (1000 / (1000 + epochs)) * node.output * error_vector[node_weight_pair[0]]
                             node.output_nodes[i] = (node_weight_pair[0], new_weight)
             
-            if epochs % 100 == 0:
-                print("CHECKING DATA:")
-                self.testing(checking)
-                print()
             epochs += 1
 
     def test_on_example(self, test_data):
@@ -347,6 +340,28 @@ class NeuralNetwork:
             return True
         return False
 
+    def k_fold_cross_validation(self, data_set, k):
+        """Performs k-fold cross validation on the given NN using the given data set.
+        
+        Typical values for K include 5, 10, n (where n is length of data_set)
+        """
+
+        # split data into k equal sized subsets (these are randomized to make things interesting)
+        subsets = []
+        for _ in range(k):
+            subsets.append(random.sample(data_set, round(len(data_set) / k)))
+        
+        # run k iterations of learning, where each iteration uses a different subset of the test data.
+        for i in range(k):
+            self.back_propagation_learning(subsets[i])
+
+        # then, average accuracy over k rounds for a better estimate of accuracy on unseen data
+        average = 0
+        for i in range(1, k + 1):
+            average += self.testing(subsets[i - 1])
+        average /= k
+        return average
+
     def testing(self, test_data):
         """For each example of test data, runs a test of the NN on it, and tallies the number of correct runs."""
         tally = 0
@@ -354,7 +369,40 @@ class NeuralNetwork:
         for example in test_data:
             if self.test_on_example(example):
                 tally += 1
-        print(str((tally / size) * 100) + "% correct")
+        return (tally / size) * 100
+
+def testing_nn_layout(data_set, data_set_name, input_layer_size, output_layer_size):
+    """Generates different NNs and generates accuracy based on the layout."""
+
+    # controls: epochs = 1000
+
+    with open("nn_test_" + data_set_name[:-4] + ".out", "w") as file:
+
+        min_val = 0
+        max_val = 0
+        # 3 layer NNs
+        accuracy_list = []
+        print("3 Layer NNs:")
+        for i in range(min_val, max_val + 1):
+            nn_list = [input_layer_size, i, output_layer_size]
+            nn = NeuralNetwork(nn_list)
+            nn_accuracy = nn.k_fold_cross_validation(data_set, 5)
+            print((nn_list, nn_accuracy))
+            file.write(str((nn_list, nn_accuracy)) + "\n")
+            accuracy_list.append((nn_list, nn_accuracy))
+        print()
+
+        # 4 layer NNs
+        print("4 Layer NNs:")
+        for i in range(min_val, max_val + 1):
+            for j in range(min_val, max_val + 1):
+                nn_list = [input_layer_size, i, j, output_layer_size]
+                nn = NeuralNetwork(nn_list)
+                nn_accuracy = nn.k_fold_cross_validation(data_set, 5)
+                print((nn_list, nn_accuracy))
+                file.write(str((nn_list, nn_accuracy)) + "\n")
+                accuracy_list.append((nn_list, nn_accuracy))
+        print()
 
 def main():
     """Main method - runs everything necessary to allow NN to function."""
@@ -364,25 +412,18 @@ def main():
 
     # Note: add 1.0 to the front of each x vector to account for the dummy input
     data = [([1.0] + x, y) for (x, y) in pairs]
-    training = [([1.0] + x, y) for (x, y) in pairs]
-    # training = random.sample(data, len(data) // 2)
-    # testing = random.sample(data, len(data) // 2)
 
-    # # Check out the data:
-    for example in training:
+    # Check out the data:
+    for example in data:
         print(example)
 
-    print()
+    # testing_nn_layout(data, sys.argv[1], len(data[0][0]) - 1, len(data[0][1]))
 
-    ### I expect the running of your program will work something like this;
-    ### this is not mandatory and you could have something else below entirely.
-    nn = NeuralNetwork([3, 6, 3])
-    nn.back_propagation_learning(training)
+    # print()
 
-    print("TEST DATA:")
-    nn.testing(training)
-    # nn.testing(testing)
-    print()
+    nn = NeuralNetwork([2, 1, 1])
+    print(nn)
+    # nn.k_fold_cross_validation(data, 5)
 
 if __name__ == "__main__":
     main()
